@@ -7,13 +7,13 @@ EZ website for sharing blogs with markdown~
 ### Megatron-LM
 
 #### paper & walk-in
+
 1. [Megatron-LM: Training Multi-Billion Parameter Language Models Using Model Parallelism](https://arxiv.org/pdf/1909.08053.pdf)
-    - [walk-in]()
+    - [walk-in](./Large-Scale-Distributed-Training/Megatron-LM-1.md)
 2. [](https://arxiv.org/pdf/2104.04473.pdf)
     - [walk-in]()
 3. [](https://arxiv.org/pdf/2205.05198)
     - [walk-in]()
-
 
 #### code
 
