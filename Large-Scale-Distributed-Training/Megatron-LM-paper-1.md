@@ -1,5 +1,8 @@
 # Megatron-LM: Training Multi-Billion Parameter Language Models Using
 
+- paper: https://arxiv.org/pdf/1909.08053.pdf
+- github: https://github.com/NVIDIA/Megatron-LM
+
 - [Megatron-LM: Training Multi-Billion Parameter Language Models Using](#megatron-lm-training-multi-billion-parameter-language-models-using)
   - [Abstract](#abstract)
     - [主要工作内容](#主要工作内容)
@@ -139,7 +142,7 @@ class VocabParallelEmbedding():
    2. ![](imgs/p1-f8.jpg)
 3. Bi-directional Transformer Results Using BERT
    1. 值得一提的是，由于原始的bert的结构中，residual模块不包含LN，如果参数量加大会导致无法收敛的情况，这里Megatron把LN放进了residual，避免了无法收敛的情况
-   2. ![](imgs/p1-f9.jpg)
+   2. ![](imgs/p1-f10.jpg)
    3. ![](imgs/p1-f9.jpg)
 
 ##  Conclusion and Future Work
