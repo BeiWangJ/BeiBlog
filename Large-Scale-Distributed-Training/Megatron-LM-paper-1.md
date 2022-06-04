@@ -11,6 +11,9 @@
     - [contributions](#contributions)
   - [Background and Challenges](#background-and-challenges)
   - [Model Parallel Transformers](#model-parallel-transformers)
+  - [Setup](#setup)
+  - [Experiments](#experiments)
+  - [Conclusion and Future Work](#conclusion-and-future-work)
 
 ## Abstract
 
@@ -121,4 +124,46 @@ class VocabParallelEmbedding():
       return output
 ```
 8. 说明完主要内容后，作者提到了，dropout, layer normalization, or residual connections在每张卡上是独立的，具体来说就是每张卡上都各自保留了LN的参数，允许各自优化自己的部分。这里每张卡指的是tensor-model-parrallel-group中的每张卡。
-9. 
+
+## Setup
+1. Training Dataset
+2. Training Optimization and Hyperparamet
+
+## Experiments 
+
+1. Scaling Analysis
+   1.  MODEL AND DATA PARALLELISM
+   2.  ![](imgs/p1-f6.jpg)
+2. Language Modeling Results Using GPT-2
+   1. ![](imgs/p1-f7.jpg)
+   2. ![](imgs/p1-f8.jpg)
+3. Bi-directional Transformer Results Using BERT
+   1. 值得一提的是，由于原始的bert的结构中，residual模块不包含LN，如果参数量加大会导致无法收敛的情况，这里Megatron把LN放进了residual，避免了无法收敛的情况
+   2. ![](imgs/p1-f9.jpg)
+   3. ![](imgs/p1-f9.jpg)
+
+##  Conclusion and Future Work
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
