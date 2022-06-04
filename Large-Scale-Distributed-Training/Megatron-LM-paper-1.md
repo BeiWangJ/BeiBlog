@@ -54,7 +54,18 @@ Attention
 
 1. 在MLP中常见的一个操作就是mm+gelu(GEMM)
 2. 一种方法是**沿着其行(raw)将weight矩阵A分割，并沿着其列(columns)输入X分割**，来实现tensor-model-parallel，从下图中我们可以看出，在该方法下，需要通过同步来保障语义对等
-    - ![](./imgs/p1-f2.jpg)
-3. 另一种方法是**沿着它的列(columns)分割A**，这种方法的好处是保障了各自语义的对等，
-
-
+  - ![](./imgs/p1-f2.jpg)
+3. 另一种方法是**沿着它的列(columns)分割A**，这种方法的好处是保障了各自在独立运行GEMM时的语义对等，对于一个module的正向输出在各卡上的同步，就需要2种所描述的方法来保障了
+  - ![](./imgs/p1-f3.jpg)
+4. 使用3的方法我们可以看到，使用了同一个X，这样在反向的时候需要梯度同步来保障module的反向输出在各卡上的同步，在PyTorch中，我们可以轻松实现这个功
+```python
+class f(torch.autograd.Function):
+   def forward(ctx, x):
+    return x
+   def backward(ctx, gradient):
+    all_reduce(gradient)
+    return gradient
+```
+5. 图示，对于一个MLP，进来先进行方法3，然后使用方法2，实现MLP的整体的tensor-model-parallel且语义和原始MLP对等；该方法同样可以扩展到Self-Attention模块
+  - ![](./imgs/p1-f4.jpg)
+6. 实际上仔细想想，这个方法其实在Self-Attention立，语义并非完全和单卡一致的，尤其是softmax
