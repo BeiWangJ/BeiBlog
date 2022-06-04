@@ -1,5 +1,17 @@
 # Megatron-LM: Training Multi-Billion Parameter Language Models Using
 
+- [Megatron-LM: Training Multi-Billion Parameter Language Models Using](#megatron-lm-training-multi-billion-parameter-language-models-using)
+  - [Abstract](#abstract)
+    - [主要工作内容](#主要工作内容)
+    - [方法便捷性亮点](#方法便捷性亮点)
+    - [在模型参数扩展上的改进](#在模型参数扩展上的改进)
+    - [精度效果](#精度效果)
+  - [Introduction](#introduction)
+    - [扩展性](#扩展性)
+    - [contributions](#contributions)
+  - [Background and Challenges](#background-and-challenges)
+  - [Model Parallel Transformers](#model-parallel-transformers)
+
 ## Abstract
 
 ### 主要工作内容  
@@ -52,12 +64,12 @@ Attention
 ## Model Parallel Transformers
 - 重点来了
 
-1. 在MLP中常见的一个操作就是mm+gelu(GEMM)
-2. 一种方法是**沿着其行(raw)将weight矩阵A分割，并沿着其列(columns)输入X分割**，来实现tensor-model-parallel，从下图中我们可以看出，在该方法下，需要通过同步来保障语义对等
+1. 在MLP中常见的一个操作就是mm+gelu
+2. 一种方法是**沿着其行(row)将weight矩阵A分割，并沿着其列(columns)输入X分割**，来实现tensor-model-parallel，从下图中我们可以看出，在该方法下，需要通过同步来保障语义对等
   - ![](./imgs/p1-f2.jpg)
-3. 另一种方法是**沿着它的列(columns)分割A**，这种方法的好处是保障了各自在独立运行GEMM时的语义对等，对于一个module的正向输出在各卡上的同步，就需要2种所描述的方法来保障了
+3. 另一种方法是**沿着它的列(columns)分割A**，这种方法的好处是保障了各自在独立运行时的语义对等，对于一个module的正向输出在各卡上的同步，就需要2种所描述的方法来保障了
   - ![](./imgs/p1-f3.jpg)
-4. 使用3的方法我们可以看到，使用了同一个X，这样在反向的时候需要梯度同步来保障module的反向输出在各卡上的同步，在PyTorch中，我们可以轻松实现这个功
+4. 使用3的方法我们可以看到，使用了同一个X，这样在反向的时候需要梯度同步来保障module的反向输出在各卡上的同步，在PyTorch中，我们可以轻松实现这个功能
 ```python
 class f(torch.autograd.Function):
    def forward(ctx, x):
@@ -68,4 +80,45 @@ class f(torch.autograd.Function):
 ```
 5. 图示，对于一个MLP，进来先进行方法3，然后使用方法2，实现MLP的整体的tensor-model-parallel且语义和原始MLP对等；该方法同样可以扩展到Self-Attention模块
   - ![](./imgs/p1-f4.jpg)
-6. 实际上仔细想想，这个方法其实在Self-Attention立，语义并非完全和单卡一致的，尤其是softmax
+6. 仔细想了下为什么是上述图片这样的结构，主要原因还是在于residual path的add需要语义上的一致，所以对于每个类MLP的结构而言，一输入就走列并行，使效率最大化；输出时走行并行，使结果语义对齐，从而兼顾了效率和语义。transformer类模型中类MLP结构一般如下所示
+  - ![](./imgs/p1-f5.jpg)
+7. 下一步想到了另一个参数量很大的地方，embedding层，虽然torch将embedding视为将input作为index，在weight上做index_select操作，实际上embedding也可以被视为，对input进行one_hot然后和weight进行mm的操作，这样想来，将embedding层想做linear层使用模型并行操作就顺多了。这部分在代码上比较清楚，就直接上代码了
+```python
+class VocabParallelEmbedding():
+   def __init__(self, num_embeddings, embedding_dim, init_method=init.xavier_normal_):
+      super(VocabParallelEmbedding, self).__init__()
+      ...
+      # 通过获取当前tensor_model_parallel的rank来确定当前卡要embedding的category id，初始化权重
+      self.vocab_start_index, self.vocab_end_index = VocabUtility.vocab_range_from_global_vocab_size(
+             self.num_embeddings, get_tensor_model_parallel_rank(),
+             self.tensor_model_parallel_size)
+      self.num_embeddings_per_partition = self.vocab_end_index - self.vocab_start_index
+      self.weight = Parameter(torch.empty(
+             self.num_embeddings_per_partition, self.embedding_dim,
+             dtype=args.params_dtype))
+      ...
+
+   def forward(self, input_):
+      if self.tensor_model_parallel_size > 1:
+         # 把当前卡上不要的category idx mask掉
+         input_mask = (input_ < self.vocab_start_index) | \
+                      (input_ >= self.vocab_end_index)
+         # Mask the input.
+         masked_input = input_.clone() - self.vocab_start_index
+         masked_input[input_mask] = 0
+      else:
+        masked_input = input_
+      # Get the embeddings.
+      output_parallel = F.embedding(masked_input, self.weight,
+                                self.padding_idx, self.max_norm,
+                                self.norm_type, self.scale_grad_by_freq,
+                                self.sparse)
+      # 把mask掉的category idx对应的embedding处理成0.
+      if self.tensor_model_parallel_size > 1:
+        output_parallel[input_mask, :] = 0.0
+      # Reduce across all the model parallel GPUs.
+      output = reduce_from_tensor_model_parallel_region(output_parallel)
+      return output
+```
+8. 说明完主要内容后，作者提到了，dropout, layer normalization, or residual connections在每张卡上是独立的，具体来说就是每张卡上都各自保留了LN的参数，允许各自优化自己的部分。这里每张卡指的是tensor-model-parrallel-group中的每张卡。
+9. 
