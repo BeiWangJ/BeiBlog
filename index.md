@@ -12,7 +12,8 @@ EZ website for sharing blogs with markdown~
     - [walk-in](./Large-Scale-Distributed-Training/Megatron-LM-paper-1.md)
 2. [Efficient Large-Scale Language Model Training on GPU Clusters Using Megatron-LM](https://arxiv.org/pdf/2104.04473.pdf)
     - [walk-in](./Large-Scale-Distributed-Training/Megatron-LM-paper-2.md)
-3. [](https://arxiv.org/pdf/2205.05198)
+3. [Reducing Activation Recomputation
+in Large Transformer Models](https://arxiv.org/pdf/2205.05198)
     - [walk-in](./Large-Scale-Distributed-Training/Megatron-LM-paper-3.md)
 
 #### code
